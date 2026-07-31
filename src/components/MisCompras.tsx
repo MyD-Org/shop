@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button, Field, Input } from "@myd-org/ui";
 import { ORDERS, ORDER_SUMMARY, ORDER_ESTADO_LABEL, type Order, type OrderEstado } from "@/data/orders";
 
-const CRM_URL = process.env.NEXT_PUBLIC_CRM_URL ?? "https://portal.centralled.com.ar";
+const CRM_URL = process.env.NEXT_PUBLIC_CRM_URL ?? "https://crm.centralled.com.ar";
 
 function fmt(n: number) {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0 });
