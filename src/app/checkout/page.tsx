@@ -15,9 +15,14 @@ export default async function CheckoutPage() {
     redirect("/ingresar");
   }
 
-  // Sin datos fiscales no se puede facturar la compra. Se resuelve acá y se
-  // avisa arriba de todo, en vez de dejar que llene el formulario entero y
-  // recién rebote contra el 409 al apretar "Confirmar".
+  /**
+   * El perfil VIAJA ENTERO al checkout, no solo un booleano.
+   *
+   * Antes se mandaba `facturacionCompleta` y, si faltaba, se lo empujaba a
+   * /mi-cuenta a cargarlo — o sea, sacarlo del checkout justo cuando estaba por
+   * comprar, y hacerle rehacer el camino. Con el perfil completo acá, el
+   * formulario se puede resolver en la misma pantalla.
+   */
   const perfil = clerkUserId ? await getPerfilFacturacion(clerkUserId) : null;
 
   return (
@@ -28,6 +33,10 @@ export default async function CheckoutPage() {
         }
         emailCliente={cliente?.email ?? email}
         facturacionCompleta={perfilCompleto(perfil)}
+        perfilFacturacion={perfil}
+        // Con cuenta corriente vinculada, los datos fiscales los manda Alegra:
+        // el cliente los ve, no los edita.
+        facturacionBloqueada={Boolean(cliente)}
       />
       <Footer />
     </>

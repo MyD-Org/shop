@@ -21,6 +21,30 @@ export const dynamic = "force-dynamic";
 const MAX_POR_MINUTO = 20;
 
 /**
+ * Techo para quien NO está logueado, por IP.
+ *
+ * Mostrarle el precio final a un visitante es lo correcto para vender, pero
+ * abre este amplificador a cualquiera. Una IP es mucho más débil como identidad
+ * que una cuenta —se comparte en una oficina, se rota con un proxy— así que el
+ * límite es más bajo: alcanza de sobra para mirar un carrito, y no para barrer
+ * el catálogo.
+ */
+const MAX_POR_MINUTO_ANONIMO = 8;
+
+/**
+ * IP del visitante detrás del proxy de Vercel.
+ *
+ * `x-forwarded-for` puede traer una cadena; el primero es el cliente. Sin
+ * ninguna cabecera se cae a una clave común: en el peor caso todos los anónimos
+ * comparten el mismo cupo, que es preferible a no limitar nada.
+ */
+function ipDe(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "sin-ip";
+}
+
+/**
  * POST /api/carrito/cotizar
  * Body: { items: [{ id, qty }], entregaTipo?, ciudad? }
  *
@@ -29,13 +53,26 @@ const MAX_POR_MINUTO = 20;
  * tienen en memoria. Ver src/lib/cotizacion.ts.
  */
 export async function POST(req: Request) {
+  /**
+   * NO exige sesión.
+   *
+   * Antes devolvía 401 al visitante, y el carrito le mostraba "ingresá para ver
+   * tus precios" con los totales en blanco — esconderle el precio final a
+   * alguien que está evaluando comprar es la peor manera de que compre. Ahora
+   * cotiza igual: sin cuenta corriente vinculada, `idPriceList` queda undefined
+   * y `cotizar` usa la lista principal, que es el precio de lista de siempre.
+   *
+   * La sesión se pide recién al confirmar el pedido, que es cuando de verdad
+   * hace falta porque el pedido se ata a un usuario.
+   */
   const { clerkUserId, cliente } = await identidadActual();
-  if (!clerkUserId && !cliente) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
 
-  const quien = clerkUserId ?? cliente!.codigocliente;
-  if (!permitir(`cotizar:${quien}`, MAX_POR_MINUTO, 60_000)) {
+  const anonimo = !clerkUserId && !cliente;
+  const clave = anonimo
+    ? `cotizar:ip:${ipDe(req)}`
+    : `cotizar:${clerkUserId ?? cliente!.codigocliente}`;
+
+  if (!permitir(clave, anonimo ? MAX_POR_MINUTO_ANONIMO : MAX_POR_MINUTO, 60_000)) {
     return NextResponse.json(
       { error: "Estás recalculando muy seguido. Esperá unos segundos." },
       { status: 429 },

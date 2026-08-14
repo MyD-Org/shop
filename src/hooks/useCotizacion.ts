@@ -21,7 +21,12 @@ export interface CotizacionResponse extends Cotizacion {
   pagosDisponibles: PagoMetodo[];
 }
 
-export type EstadoCotizacion = "vacio" | "cargando" | "ok" | "error" | "no_auth";
+/**
+ * Ya no existe `no_auth`: la cotización no exige sesión. Al visitante se le
+ * muestra el precio de lista como a cualquiera, y el login se pide recién al
+ * confirmar el pedido.
+ */
+export type EstadoCotizacion = "vacio" | "cargando" | "ok" | "error";
 
 /**
  * Espera antes de recotizar tras un cambio.
@@ -50,7 +55,6 @@ interface Resultado {
   ciudad: string;
   data: CotizacionResponse | null;
   error: string | null;
-  noAuth: boolean;
 }
 
 export function useCotizacion(opts: {
@@ -109,18 +113,12 @@ export function useCotizacion(opts: {
           }),
         });
 
-        if (r.status === 401) {
-          setRes({ ...etiqueta, data: null, error: null, noAuth: true });
-          return;
-        }
-
         const json = await r.json();
 
         if (!r.ok) {
           setRes({
             ...etiqueta,
             data: null,
-            noAuth: false,
             error: json?.error ?? "No pudimos calcular el total.",
           });
           return;
@@ -130,7 +128,6 @@ export function useCotizacion(opts: {
           ...etiqueta,
           data: json as CotizacionResponse,
           error: null,
-          noAuth: false,
         });
       } catch (err) {
         // Un abort es un fetch que quedó viejo, no una falla: si se guardara
@@ -139,7 +136,6 @@ export function useCotizacion(opts: {
         setRes({
           ...etiqueta,
           data: null,
-          noAuth: false,
           error: "No pudimos conectarnos. Revisá tu conexión.",
         });
       }
@@ -166,7 +162,6 @@ export function useCotizacion(opts: {
   let estado: EstadoCotizacion;
   if (vacio) estado = "vacio";
   else if (!vigente) estado = "cargando";
-  else if (res.noAuth) estado = "no_auth";
   else if (res.error) estado = "error";
   else estado = "ok";
 

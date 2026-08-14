@@ -6,6 +6,8 @@ import { Button, Field, Input } from "@myd-org/ui";
 import { useCart } from "@/context/CartContext";
 import { useCotizacion } from "@/hooks/useCotizacion";
 import { PagoMercadoPago } from "@/components/PagoMercadoPago";
+import { FacturacionForm, type PerfilFacturacionUI } from "@/components/FacturacionForm";
+import { CONDICION_IVA_LABEL, formatearCuit } from "@/lib/facturacion";
 import { fmtPrecio } from "@/lib/format";
 import {
   CIUDADES_ENVIO,
@@ -90,12 +92,18 @@ interface Props {
   emailCliente?: string;
   /** El perfil fiscal está completo: sin esto no se puede emitir la factura. */
   facturacionCompleta: boolean;
+  /** Perfil guardado, para prellenar el formulario sin salir del checkout. */
+  perfilFacturacion: PerfilFacturacionUI | null;
+  /** Vinculado a Alegra: los datos fiscales se muestran, no se editan. */
+  facturacionBloqueada?: boolean;
 }
 
 export function CheckoutClient({
   nombreSugerido,
   emailCliente,
   facturacionCompleta,
+  perfilFacturacion,
+  facturacionBloqueada,
 }: Props) {
   const { items, clear, ready } = useCart();
 
@@ -120,6 +128,15 @@ export function CheckoutClient({
     total: number;
   } | null>(null);
   const [pagado, setPagado] = useState(false);
+
+  /**
+   * ¿Los datos fiscales ya están? Arranca con lo que dijo el servidor, pero
+   * pasa a `true` en cuanto el formulario de abajo guarda — sin recargar ni
+   * salir del checkout, que es todo el punto de tenerlo acá.
+   */
+  const [facturacionLista, setFacturacionLista] = useState(facturacionCompleta);
+  /** El formulario está desplegado. Si faltan datos, arranca abierto. */
+  const [editandoFacturacion, setEditandoFacturacion] = useState(!facturacionCompleta);
 
   /**
    * Clave del intento de compra. Se genera en el PRIMER confirmar y se reusa en
@@ -162,7 +179,7 @@ export function CheckoutClient({
     !cotizacion.hayProblemas &&
     cotizacion.lineas.length > 0 &&
     datosCompletos &&
-    facturacionCompleta &&
+    facturacionLista &&
     (entrega === "retiro" || envioDisponible) &&
     !enviando;
 
@@ -321,23 +338,7 @@ export function CheckoutClient({
 
       <h1 className="mb-6 text-2xl font-extrabold text-text">Finalizar pedido</h1>
 
-      {!facturacionCompleta && (
-        <div className="mb-6 rounded-xl border border-warning/40 bg-warning/5 p-4">
-          <p className="text-sm font-semibold text-text">
-            Falta cargar tus datos de facturación
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            Los necesitamos para emitirte la factura de esta compra. Se cargan
-            una sola vez.
-          </p>
-          <Link
-            href="/mi-cuenta"
-            className="mt-3 inline-block text-sm font-semibold text-primary hover:underline"
-          >
-            Cargar mis datos →
-          </Link>
-        </div>
-      )}
+
 
       <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
         {/* ------------------------------------------------------ formulario */}
@@ -361,6 +362,71 @@ export function CheckoutClient({
                 />
               </Field>
             </div>
+          </section>
+
+          {/*
+            Facturación EN el checkout, no en otra pantalla.
+            Antes, si faltaban los datos, se lo mandaba a /mi-cuenta a cargarlos
+            y volver — o sea, sacarlo del checkout justo cuando estaba por
+            comprar. Acá se resuelve sin moverse: si ya los tiene, se muestran
+            en una línea y no molesta; si no, el formulario aparece abierto.
+          */}
+          <section>
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="text-base font-bold text-text">Datos de facturación</h2>
+              {facturacionLista && !editandoFacturacion && !facturacionBloqueada && (
+                <button
+                  type="button"
+                  onClick={() => setEditandoFacturacion(true)}
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
+                  Editar
+                </button>
+              )}
+            </div>
+
+            {facturacionLista && !editandoFacturacion ? (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <p className="text-sm font-semibold text-text">
+                  {perfilFacturacion?.razonSocial}
+                </p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {perfilFacturacion?.tipoDoc === "CUIT"
+                    ? `CUIT ${formatearCuit(perfilFacturacion?.nroDoc ?? "")}`
+                    : `DNI ${perfilFacturacion?.nroDoc ?? ""}`}
+                  {perfilFacturacion?.condicionIva && (
+                    <>
+                      {" · "}
+                      {CONDICION_IVA_LABEL[
+                        perfilFacturacion.condicionIva as keyof typeof CONDICION_IVA_LABEL
+                      ] ?? perfilFacturacion.condicionIva}
+                    </>
+                  )}
+                </p>
+                {facturacionBloqueada && (
+                  <p className="mt-2 text-xs text-muted">
+                    Estos datos vienen de tu cuenta corriente. Para cambiarlos, escribinos.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                {!facturacionLista && (
+                  <p className="mb-4 text-sm text-muted">
+                    Los necesitamos para emitirte la factura. Se cargan una sola vez:
+                    la próxima compra ya van a estar.
+                  </p>
+                )}
+                <FacturacionForm
+                  perfil={perfilFacturacion}
+                  bloqueado={facturacionBloqueada}
+                  onGuardado={() => {
+                    setFacturacionLista(true);
+                    setEditandoFacturacion(false);
+                  }}
+                />
+              </div>
+            )}
           </section>
 
           <section>
@@ -519,8 +585,8 @@ export function CheckoutClient({
 
           {!puedeConfirmar && !enviando && (
             <p className="mt-2 text-center text-xs text-muted">
-              {!facturacionCompleta
-                ? "Cargá tus datos de facturación para continuar."
+              {!facturacionLista
+                ? "Completá tus datos de facturación más arriba."
                 : cotizacion?.hayProblemas
                   ? "Revisá los productos marcados en rojo."
                   : !datosCompletos

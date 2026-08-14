@@ -92,18 +92,6 @@ export default function CarritoPage() {
       <main className="mx-auto max-w-7xl flex-1 px-4 py-8">
         <h1 className="mb-6 text-2xl font-extrabold text-text">Carrito de compras</h1>
 
-        {estado === "no_auth" && (
-          <div className="mb-6 rounded-xl border border-border bg-elevated p-4 text-sm">
-            <p className="font-semibold text-text">Ingresá para ver tus precios</p>
-            <p className="mt-1 text-muted">
-              Los precios y el stock son los de tu cuenta.{" "}
-              <Link href="/ingresar" className="font-semibold text-primary hover:underline">
-                Iniciar sesión
-              </Link>
-            </p>
-          </div>
-        )}
-
         {estado === "error" && (
           <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-danger/40 bg-danger/5 p-4 text-sm">
             <span className="text-text">{error}</span>
