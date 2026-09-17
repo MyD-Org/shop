@@ -64,6 +64,13 @@
       "when": 1789608023798,
       "tag": "0008_catalog_iva_porcentaje",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789608092735,
+      "tag": "0009_cuotas_fundacion",
+      "breakpoints": true
     }
   ]
 }
