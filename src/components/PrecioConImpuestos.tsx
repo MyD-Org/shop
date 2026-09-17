@@ -12,7 +12,7 @@
  *   `priceNote`).
  */
 
-const fmt = (n: number) => `$${n.toLocaleString("es-AR", { maximumFractionDigits: 2 })}`;
+import { fmtMonto as fmt } from "@/lib/cuotas-textos";
 
 interface Props {
   /** Precio neto (sin IVA) de la lista del visitante. */
