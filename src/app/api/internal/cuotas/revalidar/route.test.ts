@@ -15,7 +15,7 @@ const req = (auth?: string, body?: unknown) =>
 describe("POST /api/internal/cuotas/revalidar", () => {
   beforeEach(() => {
     syncConfigCRM.mockReset();
-    process.env.INTERNAL_SECRET = "int-456";
+    process.env.SHOP_CRM_SECRET = "int-456";
   });
 
   it("401 sin secreto válido y no refresca", async () => {

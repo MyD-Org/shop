@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * inválido (la caché anterior queda intacta).
  */
 export async function POST(req: Request) {
-  if (!bearerMatches(req.headers.get("authorization"), process.env.INTERNAL_SECRET)) {
+  if (!bearerMatches(req.headers.get("authorization"), process.env.SHOP_CRM_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -213,13 +213,13 @@ export async function syncCuotas(
 // Dependencias reales
 // ---------------------------------------------------------------------------
 
-/** GET {CRM_INTERNAL_URL}/api/internal/shop/cuotas?tenant=… con Bearer INTERNAL_SECRET. */
+/** GET {CRM_INTERNAL_URL}/api/internal/shop/cuotas?tenant=… con Bearer SHOP_CRM_SECRET. */
 export async function obtenerConfigCRMHttp(): Promise<unknown> {
   const base = process.env.CRM_INTERNAL_URL;
-  const secreto = process.env.INTERNAL_SECRET;
+  const secreto = process.env.SHOP_CRM_SECRET;
   const tenant = process.env.SHOP_TENANT_ID;
   if (!base || !secreto || !tenant) {
-    throw new Error("Faltan CRM_INTERNAL_URL, INTERNAL_SECRET o SHOP_TENANT_ID en el entorno.");
+    throw new Error("Faltan CRM_INTERNAL_URL, SHOP_CRM_SECRET o SHOP_TENANT_ID en el entorno.");
   }
   const url = `${base.replace(/\/+$/, "")}/api/internal/shop/cuotas?tenant=${encodeURIComponent(tenant)}`;
   const res = await fetch(url, {
