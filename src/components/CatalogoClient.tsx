@@ -6,8 +6,11 @@ import { Badge, Checkbox, Chip, ProductCard, Select } from "@myd-org/ui";
 import { Footer } from "@/components/Footer";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { PrecioConImpuestos } from "@/components/PrecioConImpuestos";
+import { CuotasCard } from "@/components/CuotasCard";
 import type { Product } from "@/data/products";
 import type { Facetas } from "@/lib/catalog";
+import { mejorOpcionPara } from "@/lib/cuotas-exhibicion";
+import type { OfertaCuotas, OpcionCuotas } from "@/lib/pagos/cuotas-tipos";
 
 /** Precio principal que ve el visitante: final con IVA si se conoce, si no el de siempre. */
 const precioExhibido = (p: Product) => p.precioFinal ?? p.price;
@@ -27,13 +30,28 @@ export function CatalogoClient({
   productos,
   facetas,
   query,
+  oferta = null,
 }: {
   productos: Product[];
   facetas: Facetas;
   query?: string;
+  /** Oferta de cuotas resuelta en el server. null = no se muestran cuotas. */
+  oferta?: OfertaCuotas | null;
 }) {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sort, setSort] = useState("ventas");
+
+  // Mejor opción por producto, sobre su precio final unitario. Una sola vez por
+  // catálogo/oferta: filtrar u ordenar no la recalcula.
+  const cuotasPorProducto = useMemo(() => {
+    const m = new Map<string, OpcionCuotas>();
+    if (!oferta) return m;
+    for (const p of productos) {
+      const mejor = mejorOpcionPara(p.precioFinal, oferta);
+      if (mejor) m.set(p.id, mejor);
+    }
+    return m;
+  }, [productos, oferta]);
 
   const removeFilter = (f: string) =>
     setActiveFilters((prev) => prev.filter((x) => x !== f));
@@ -184,9 +202,10 @@ export function CatalogoClient({
                       />
                     }
                   />
-                  {/* Fallback hasta que ProductCard de @myd-org/ui tenga slot `priceNote`. */}
+                  {/* Fallback hasta que ProductCard de @myd-org/ui tenga slots `priceNote` / `installments`. */}
                   <div className="px-1 pt-1">
                     <PrecioConImpuestos price={p.price} precioFinal={p.precioFinal} variante="nota" />
+                    <CuotasCard opcion={cuotasPorProducto.get(p.id) ?? null} />
                   </div>
                 </Link>
               ))}
