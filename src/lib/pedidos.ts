@@ -383,6 +383,26 @@ export interface ResultadoCobro {
   medio?: string;
   /** true si el proveedor informó un contracargo o una devolución. */
   reversion?: boolean;
+  /** Cuotas reales del cobro, si el proveedor las informó. */
+  cuotas?: number;
+  /** Total pagado con interés, si el proveedor lo informó. */
+  totalPagado?: number;
+}
+
+/**
+ * Columnas de cuotas reales a escribir. Sólo las que vinieron y son válidas:
+ * un evento sin esos datos no pisa lo que ya se guardó. `orders.total` NO se
+ * toca nunca: es lo que se cotizó; el interés vive en `pago_total_pagado`.
+ */
+export function camposCuotasCobro(
+  cobro: ResultadoCobro,
+): { pagoCuotas?: number; pagoTotalPagado?: string } {
+  const campos: { pagoCuotas?: number; pagoTotalPagado?: string } = {};
+  if (Number.isInteger(cobro.cuotas) && (cobro.cuotas as number) >= 1) campos.pagoCuotas = cobro.cuotas;
+  if (typeof cobro.totalPagado === "number" && Number.isFinite(cobro.totalPagado) && cobro.totalPagado >= 0) {
+    campos.pagoTotalPagado = cobro.totalPagado.toFixed(2);
+  }
+  return campos;
 }
 
 /**
@@ -448,6 +468,7 @@ export async function registrarCobro(
         pagoReferencia: cobro.referencia,
         pagoDetalle: cobro.detalle,
         ...(cobro.medio ? { pagoMedio: cobro.medio } : {}),
+        ...camposCuotasCobro(cobro),
         ...(transicionPermitida(actual, cobro.estado, cobro.reversion)
           ? { pagoEstado: cobro.estado }
           : {}),

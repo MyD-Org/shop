@@ -117,6 +117,8 @@ export async function POST(req: Request) {
       estado: resultado.estado,
       detalle: resultado.detalle,
       medio,
+      cuotas: resultado.cuotasPagadas,
+      totalPagado: resultado.totalPagado,
     });
 
     /**
