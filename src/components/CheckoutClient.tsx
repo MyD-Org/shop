@@ -118,6 +118,8 @@ export function CheckoutClient({
     numero: string;
     id: string;
     total: number;
+    /** Máximo de cuotas congelado en el pedido. null = sin límite propio (flag off o legacy). */
+    cuotasMax: number | null;
   } | null>(null);
   const [pagado, setPagado] = useState(false);
   const [cancelando, setCancelando] = useState(false);
@@ -138,6 +140,7 @@ export function CheckoutClient({
           numero: data.pedido.numero,
           id: data.pedido.id,
           total: data.pedido.total,
+          cuotasMax: typeof data.pedido.cuotasMax === "number" ? data.pedido.cuotasMax : null,
         });
         setPago("mercadopago");
       })
@@ -255,6 +258,7 @@ export function CheckoutClient({
         numero: json.numero,
         id: json.id,
         total: json.cotizacion?.total ?? cotizacion?.total ?? 0,
+        cuotasMax: typeof json.cuotasMax === "number" ? json.cuotasMax : null,
       });
       if (pagoElegido !== "mercadopago") {
         clear();
@@ -306,6 +310,7 @@ export function CheckoutClient({
           numero={confirmado.numero}
           monto={confirmado.total}
           emailComprador={emailCliente}
+          maxCuotas={confirmado.cuotasMax ?? undefined}
           onPagado={() => {
             setPagado(true);
             // El carrito se vacía RECIÉN acá: el pedido está pago, la compra

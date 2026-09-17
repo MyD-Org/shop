@@ -18,6 +18,7 @@ import {
   type PagoEstado,
 } from "@/data/orders";
 import type { Cotizacion } from "./cotizacion";
+import type { PlanPedido } from "./pagos/cuotas-tipos";
 import {
   ENTREGA_LABEL,
   PAGO_LABEL,
@@ -87,7 +88,12 @@ export async function crearPedido(
   cliente: DatosCliente,
   datos: DatosPedido,
   cotizacion: Cotizacion,
-): Promise<{ id: string; numero: string; repetido: boolean }> {
+  /**
+   * Plan de cuotas resuelto por el server sobre `cotizacion.total`. null = sin
+   * oferta leíble o medio offline → cuotas_max null (legacy 1..24).
+   */
+  plan: PlanPedido | null = null,
+): Promise<{ id: string; numero: string; repetido: boolean; cuotasMax: number | null }> {
   const lineas = cotizacion.lineas.filter((l) => !l.problema);
   if (lineas.length === 0) {
     throw new Error("No hay líneas válidas para crear el pedido");
@@ -121,6 +127,8 @@ export async function crearPedido(
         iva: String(cotizacion.iva),
         costoEnvio: String(cotizacion.costoEnvio),
         total: String(cotizacion.total),
+        cuotasMax: plan?.cuotasMax ?? null,
+        cuotasPlan: plan,
       })
       // El `where` acá es el predicado del índice parcial, no un filtro de
       // filas: sin él, Postgres no sabe qué índice usar para resolver el
@@ -129,14 +137,14 @@ export async function crearPedido(
         target: orders.idempotencyKey,
         where: sql`${orders.idempotencyKey} is not null`,
       })
-      .returning({ id: orders.id, numero: orders.numero });
+      .returning({ id: orders.id, numero: orders.numero, cuotasMax: orders.cuotasMax });
 
     // Sin fila devuelta, la clave ya existía: es un reintento del mismo intento
     // de compra. Se devuelve el pedido original y NO se escriben las líneas de
     // nuevo — duplicarlas dejaría el pedido con el doble de todo.
     if (!pedido) {
       const [existente] = await tx
-        .select({ id: orders.id, numero: orders.numero })
+        .select({ id: orders.id, numero: orders.numero, cuotasMax: orders.cuotasMax })
         .from(orders)
         .where(eq(orders.idempotencyKey, datos.idempotencyKey!))
         .limit(1);
@@ -152,6 +160,7 @@ export async function crearPedido(
         id: existente.id,
         numero: formatearNumero(existente.numero),
         repetido: true,
+        cuotasMax: existente.cuotasMax,
       };
     }
 
@@ -175,6 +184,7 @@ export async function crearPedido(
       id: pedido.id,
       numero: formatearNumero(pedido.numero),
       repetido: false,
+      cuotasMax: pedido.cuotasMax,
     };
   });
 }
@@ -193,14 +203,16 @@ export async function crearPedido(
 export async function getPedidoPorClave(
   idempotencyKey: string,
   dueno: DuenoPedidos,
-): Promise<{ id: string; numero: string } | null> {
+): Promise<{ id: string; numero: string; cuotasMax: number | null } | null> {
   const [fila] = await getDb()
-    .select({ id: orders.id, numero: orders.numero })
+    .select({ id: orders.id, numero: orders.numero, cuotasMax: orders.cuotasMax })
     .from(orders)
     .where(and(eq(orders.idempotencyKey, idempotencyKey), esDeSuDueno(dueno)))
     .limit(1);
 
-  return fila ? { id: fila.id, numero: formatearNumero(fila.numero) } : null;
+  return fila
+    ? { id: fila.id, numero: formatearNumero(fila.numero), cuotasMax: fila.cuotasMax }
+    : null;
 }
 
 /** Fila cruda de `orders` + sus líneas, armada como `Order` de UI. */
@@ -341,6 +353,20 @@ export interface PedidoParaPago {
   clienteEmail: string | null;
   facturacionTipoDoc: string | null;
   facturacionNroDoc: string | null;
+  /** Congelado al crear el pedido. null = legacy / sin oferta leíble. */
+  cuotasMax: number | null;
+  cuotasMaxPorMedio: Record<string, number> | null;
+}
+
+/** `cuotas_plan.maxPorMedio` validado: jsonb viejo o corrupto → null (sólo tope global). */
+function maxPorMedioDe(plan: unknown): Record<string, number> | null {
+  const crudo = (plan as { maxPorMedio?: unknown } | null)?.maxPorMedio;
+  if (typeof crudo !== "object" || crudo === null || Array.isArray(crudo)) return null;
+  const salida: Record<string, number> = {};
+  for (const [medio, tope] of Object.entries(crudo)) {
+    if (Number.isInteger(tope) && (tope as number) >= 1) salida[medio] = tope as number;
+  }
+  return salida;
 }
 
 /**
@@ -371,6 +397,8 @@ export async function getPedidoParaPago(
     clienteEmail: fila.clienteEmail,
     facturacionTipoDoc: fila.facturacionTipoDoc,
     facturacionNroDoc: fila.facturacionNroDoc,
+    cuotasMax: fila.cuotasMax,
+    cuotasMaxPorMedio: fila.cuotasMax === null ? null : maxPorMedioDe(fila.cuotasPlan),
   };
 }
 
@@ -523,10 +551,10 @@ export async function registrarIntentoFallido(
  */
 export async function pedidoPendienteMasReciente(
   dueno: DuenoPedidos,
-): Promise<{ id: string; numero: string; total: number } | null> {
+): Promise<{ id: string; numero: string; total: number; cuotasMax: number | null } | null> {
   const desde = new Date(Date.now() - 24 * 60 * 60_000);
   const [fila] = await getDb()
-    .select({ id: orders.id, numero: orders.numero, total: orders.total })
+    .select({ id: orders.id, numero: orders.numero, total: orders.total, cuotasMax: orders.cuotasMax })
     .from(orders)
     .where(
       and(
@@ -545,6 +573,7 @@ export async function pedidoPendienteMasReciente(
     id: fila.id,
     numero: formatearNumero(fila.numero),
     total: num(fila.total),
+    cuotasMax: fila.cuotasMax,
   };
 }
 
