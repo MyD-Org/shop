@@ -49,8 +49,13 @@ describe("validarCuotasPago — con flag y plan congelado", () => {
     expect(validar({ cuotas: 7, metodoPagoId: "amex" })).toEqual(rechazo);
   });
 
-  it("sin metodoPagoId → sólo tope global", () => {
-    expect(validar({ cuotas: 6, metodoPagoId: undefined, maxPorMedio: { visa: 3 } })).toEqual({ ok: true, cuotas: 6 });
+  it("sin metodoPagoId y con topes por medio → rechazo (no se puede saltear el tope)", () => {
+    expect(validar({ cuotas: 6, metodoPagoId: undefined, maxPorMedio: { visa: 3 } })).toEqual(rechazo);
+    expect(validar({ cuotas: 1, metodoPagoId: undefined, maxPorMedio: { visa: 3 } })).toEqual({ ok: true, cuotas: 1 });
+  });
+
+  it("sin metodoPagoId ni topes por medio → sólo tope global", () => {
+    expect(validar({ cuotas: 6, metodoPagoId: undefined, maxPorMedio: null })).toEqual({ ok: true, cuotas: 6 });
   });
 });
 

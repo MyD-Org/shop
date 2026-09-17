@@ -42,6 +42,9 @@ export function validarCuotasPago(e: EntradaValidacionCuotas): ResultadoValidaci
   if (e.cuotas === 1) return { ok: true, cuotas: 1 };
   if (e.cuotas > e.cuotasMax) return rechazo;
 
+  // Con topes por medio, el medio es obligatorio: si no, omitir `metodoPagoId`
+  // en el POST alcanzaría para cobrar hasta el máximo global con cualquier tarjeta.
+  if (e.maxPorMedio && !e.metodoPagoId) return rechazo;
   const topeMedio = e.metodoPagoId && e.maxPorMedio ? e.maxPorMedio[e.metodoPagoId] : undefined;
   if (typeof topeMedio === "number" && e.cuotas > topeMedio) return rechazo;
 

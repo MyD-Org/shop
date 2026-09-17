@@ -8,6 +8,10 @@
  *
  * `mercadoPago: "all"` habilita dinero en cuenta dentro del mismo Brick (ver
  * comentario en PagoMercadoPago.tsx).
+ *
+ * No se congela con `Object.freeze`: el objeto se lo pasamos a un SDK remoto
+ * que podría mutarlo, y un TypeError ahí rompería el checkout incluso con
+ * CUOTAS_ENABLED apagado. La inmutabilidad queda a nivel de tipos.
  */
 
 export interface CustomizacionBrick {
@@ -22,18 +26,13 @@ export interface CustomizacionBrick {
 
 const cache = new Map<number | "sin", CustomizacionBrick>();
 
-const congelar = <T extends object>(o: T): T => {
-  for (const v of Object.values(o)) if (typeof v === "object" && v !== null) congelar(v);
-  return Object.freeze(o);
-};
-
 export function customizacionBrick(maxCuotas: number | undefined): CustomizacionBrick {
   const valido = typeof maxCuotas === "number" && Number.isInteger(maxCuotas) && maxCuotas >= 1;
   const clave = valido ? maxCuotas : "sin";
   const previa = cache.get(clave);
   if (previa) return previa;
 
-  const nueva: CustomizacionBrick = congelar({
+  const nueva: CustomizacionBrick = {
     paymentMethods: {
       creditCard: "all",
       debitCard: "all",
@@ -41,7 +40,7 @@ export function customizacionBrick(maxCuotas: number | undefined): Customizacion
       ...(valido ? { maxInstallments: maxCuotas } : {}),
     },
     visual: { style: { theme: "default" } },
-  });
+  };
   cache.set(clave, nueva);
   return nueva;
 }

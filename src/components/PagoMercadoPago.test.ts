@@ -88,9 +88,9 @@ describe("customizacionBrick", () => {
     expect(customizacionBrick(2.5)).toBe(customizacionBrick(undefined));
   });
 
-  it("es inmutable: nadie puede alterar la instancia compartida", () => {
-    expect(Object.isFrozen(customizacionBrick(6))).toBe(true);
-    expect(Object.isFrozen(customizacionBrick(6).paymentMethods)).toBe(true);
+  it("no se congela: el SDK del Brick puede mutarla sin romper el checkout", () => {
+    expect(Object.isFrozen(customizacionBrick(6))).toBe(false);
+    expect(Object.isFrozen(customizacionBrick(undefined).paymentMethods)).toBe(false);
   });
 });
 
