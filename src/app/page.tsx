@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { useEffect, useState } from "react";
 import type { Product } from "@/data/products";
+import { PrecioConImpuestos } from "@/components/PrecioConImpuestos";
 
 
 /* ── Icons ─────────────────────────────────────────────── */
@@ -275,7 +276,7 @@ export default function Home() {
                 <ProductCard
                   name={p.name}
                   brand={p.brand}
-                  price={p.price}
+                  price={p.precioFinal ?? p.price}
                   oldPrice={p.oldPrice}
                   stock={p.stock}
                   badge={
@@ -286,6 +287,10 @@ export default function Home() {
                   image={<LightbulbIcon className="h-20 w-20 text-muted/25" />}
                   action={<AddToCartButton product={{ id: p.id, name: p.name, brand: p.brand, price: p.price }} />}
                 />
+                {/* Fallback hasta que ProductCard de @myd-org/ui tenga slot `priceNote`. */}
+                <div className="px-1 pt-1">
+                  <PrecioConImpuestos price={p.price} precioFinal={p.precioFinal} variante="nota" />
+                </div>
               </Link>
             ))}
           </div>

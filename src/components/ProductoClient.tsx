@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button, PriceTier, QuantityStepper } from "@myd-org/ui";
 import { Footer } from "@/components/Footer";
+import { PrecioConImpuestos } from "@/components/PrecioConImpuestos";
 import { useCart } from "@/context/CartContext";
 import type { Product } from "@/data/products";
 
@@ -101,11 +102,7 @@ export function ProductoClient({ producto }: { producto: Product }) {
 
             {/* Card de precio */}
             <div className="rounded-xl bg-[linear-gradient(135deg,#0a2550,#143f82)] p-5">
-              <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-extrabold text-white">
-                  ${producto.price.toLocaleString("es-AR")}
-                </span>
-              </div>
+              <PrecioConImpuestos price={producto.price} precioFinal={producto.precioFinal} />
               <div className="mt-3 flex items-center gap-3">
                 <span className="flex items-center gap-1.5 text-sm text-white/70">
                   <span className={`h-2 w-2 rounded-full ${estado.color}`} />

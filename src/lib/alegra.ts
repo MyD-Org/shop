@@ -324,6 +324,8 @@ export interface ItemSyncRow {
   prices: AlegraPrice[];
   stock: number | null;
   status: string;
+  /** Alícuota de IVA del ítem. null = Alegra no mandó `tax` (ver `ivaPersistible`). */
+  ivaPorcentaje: number | null;
 }
 
 /** Fila normalizada de categoria, lista para escribir en catalog_categories. */
@@ -348,7 +350,7 @@ export function marcaDeCustomFields(customFields: unknown): string | null {
   return valor ? String(valor) : null;
 }
 
-function mapItemRow(raw: Record<string, unknown>): ItemSyncRow {
+export function mapItemRow(raw: Record<string, unknown>): ItemSyncRow {
   const priceRaw = Array.isArray(raw.price)
     ? (raw.price as Record<string, unknown>[])
     : [];
@@ -380,6 +382,7 @@ function mapItemRow(raw: Record<string, unknown>): ItemSyncRow {
     prices,
     stock: inv?.availableQuantity != null ? Number(inv.availableQuantity) : null,
     status: String(raw.status ?? "active"),
+    ivaPorcentaje: ivaPersistible({ tax: raw.tax as AlegraTax[] | undefined }),
   };
 }
 
@@ -441,6 +444,27 @@ export function ivaDeItem(item: Pick<AlegraItem, "tax">): number {
   }, 0);
   // Un array de impuestos presente pero con 0% es un item exento legítimo.
   return total;
+}
+
+/**
+ * Alícuota de IVA para GUARDAR y EXHIBIR (espejo del catálogo y ficha).
+ *
+ * Misma suma que `ivaDeItem`, con una diferencia a propósito: sin `tax` devuelve
+ * null en vez de `IVA_DEFAULT`. En la cotización el default es una red de
+ * seguridad (se corrige al facturar); en la exhibición sería publicar un precio
+ * final inventado. null = mostrar el precio como hasta ahora, sin neto.
+ */
+export function ivaPersistible(item: Pick<AlegraItem, "tax">): number | null {
+  if (!Array.isArray(item.tax) || item.tax.length === 0) return null;
+  let total = 0;
+  let alguno = false;
+  for (const t of item.tax) {
+    const pct = Number(t?.percentage);
+    if (t?.percentage == null || t.percentage === "" || !Number.isFinite(pct)) continue;
+    total += pct;
+    alguno = true;
+  }
+  return alguno ? total : null;
 }
 
 /**

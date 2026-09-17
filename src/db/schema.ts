@@ -64,6 +64,13 @@ export const catalogProducts = pgTable(
     prices: jsonb("prices").notNull().default([]),
     /** Snapshot de inventario. null = ítem no inventariable (siempre disponible). */
     stock: numeric("stock"),
+    /**
+     * Alícuota de IVA del ítem (21.00, 10.50, 0.00…), para exhibir precio final
+     * y "precio sin impuestos nacionales". null = Alegra no mandó `tax` o el
+     * producto todavía no pasó por una sync: se muestra el precio como antes.
+     * Nunca se completa con el default de la cotización (ver `ivaPersistible`).
+     */
+    ivaPorcentaje: numeric("iva_porcentaje", { precision: 5, scale: 2 }),
     status: text("status").notNull().default("active"),
     syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
   },

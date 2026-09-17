@@ -5,8 +5,12 @@ import Link from "next/link";
 import { Badge, Checkbox, Chip, ProductCard, Select } from "@myd-org/ui";
 import { Footer } from "@/components/Footer";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { PrecioConImpuestos } from "@/components/PrecioConImpuestos";
 import type { Product } from "@/data/products";
 import type { Facetas } from "@/lib/catalog";
+
+/** Precio principal que ve el visitante: final con IVA si se conoce, si no el de siempre. */
+const precioExhibido = (p: Product) => p.precioFinal ?? p.price;
 
 const SORT_OPTIONS = [
   { label: "Más vendidos", value: "ventas" },
@@ -56,9 +60,9 @@ export function CatalogoClient({
     );
     switch (sort) {
       case "precio-asc":
-        return list.sort((a, b) => a.price - b.price);
+        return list.sort((a, b) => precioExhibido(a) - precioExhibido(b));
       case "precio-desc":
-        return list.sort((a, b) => b.price - a.price);
+        return list.sort((a, b) => precioExhibido(b) - precioExhibido(a));
       case "nombre":
         return list.sort((a, b) => a.name.localeCompare(b.name, "es"));
       default:
@@ -163,7 +167,7 @@ export function CatalogoClient({
                   <ProductCard
                     name={p.name}
                     brand={p.brand}
-                    price={p.price}
+                    price={precioExhibido(p)}
                     oldPrice={p.oldPrice}
                     discount={p.discount}
                     stock={p.stock}
@@ -180,6 +184,10 @@ export function CatalogoClient({
                       />
                     }
                   />
+                  {/* Fallback hasta que ProductCard de @myd-org/ui tenga slot `priceNote`. */}
+                  <div className="px-1 pt-1">
+                    <PrecioConImpuestos price={p.price} precioFinal={p.precioFinal} variante="nota" />
+                  </div>
                 </Link>
               ))}
             </div>
